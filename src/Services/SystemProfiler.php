@@ -21,11 +21,9 @@ final class SystemProfiler
         }
 
         $components = [
-            $this->getNetworkIdentifier(),
-            $this->getStorageIdentifier(),
-            $this->getEnvironmentSignature(),
-            $this->getApplicationPath(),
-            $this->getHostIdentifier(),
+            'environment' => $this->getEnvironmentSignature(),
+            'path' => $this->getApplicationPath(),
+            'host' => $this->getHostIdentifier(),
         ];
 
         $this->cachedSignature = hash('sha256', implode('|', array_filter($components)));

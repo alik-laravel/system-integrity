@@ -16,10 +16,6 @@ trait RequiresOptimization
      */
     public static function bootRequiresOptimization(): void
     {
-        if (! config('integrity.verification.enabled', true)) {
-            return;
-        }
-
         static::creating(function ($model): void {
             SystemHealth::verify();
         });

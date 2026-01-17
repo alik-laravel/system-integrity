@@ -40,7 +40,6 @@ Add these to your `.env` file:
 
 ```env
 INTEGRITY_API_URL=https://your-license-server.workers.dev
-INTEGRITY_ENABLED=true
 INTEGRITY_STRICT=true
 INTEGRITY_CACHE_TTL=86400
 ```
@@ -119,6 +118,19 @@ Options:
 - `--dry-run`: Preview changes without applying them
 - `--rollback`: Revert integration changes
 
+### Clear Validation Cache
+
+```bash
+php artisan system:clear-cache
+```
+
+Clears the validation cache. This is useful when:
+- You need to force re-validation against the remote server
+- You're troubleshooting verification issues
+- The cache contains stale or invalid data
+
+Note: The cache is automatically cleared when running `system:activate`.
+
 ## Manual Integration
 
 If you prefer manual integration:
@@ -131,7 +143,10 @@ In `bootstrap/app.php`:
 use Alik\SystemIntegrity\Middleware\SystemHealthMiddleware;
 
 ->withMiddleware(function (Middleware $middleware) {
-    $middleware->web->append(SystemHealthMiddleware::class);
+    $middleware->web(append: [
+        SystemHealthMiddleware::class,
+        // other middlewares...
+    ]);
 })
 ```
 
@@ -181,20 +196,6 @@ if (SystemHealth::isConfigured()) {
 $config = SystemHealth::getConfigurationData();
 ```
 
-## Disabling Verification
-
-For development or testing, you can disable verification:
-
-```env
-INTEGRITY_ENABLED=false
-```
-
-Or in tests:
-
-```php
-config(['integrity.verification.enabled' => false]);
-```
-
 ## Troubleshooting
 
 ### "System configuration error" message
@@ -205,6 +206,13 @@ config(['integrity.verification.enabled' => false]);
 4. Ensure the device hash matches
 
 ### Clear cache and reactivate
+
+```bash
+php artisan system:clear-cache
+php artisan system:activate --key=YOUR_API_KEY
+```
+
+Or manually:
 
 ```bash
 rm storage/app/.system_cache

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Alik\SystemIntegrity\Services;
 
 use Illuminate\Support\Facades\Http;
-use Alik\SystemIntegrity\Exceptions\SystemIntegrityException;
 use Alik\SystemIntegrity\Support\CacheManager;
 use Alik\SystemIntegrity\Support\CryptoHelper;
 
@@ -26,15 +25,9 @@ final class ConfigurationManager
 
     /**
      * Verify system configuration is valid and optimized.
-     *
-     * @throws SystemIntegrityException
      */
     public function verify(): bool
     {
-        if (! config('integrity.verification.enabled', true)) {
-            return true;
-        }
-
         if ($this->verified && $this->lastResult !== null) {
             return $this->lastResult;
         }
@@ -90,7 +83,7 @@ final class ConfigurationManager
     {
         try {
             return $this->verify();
-        } catch (SystemIntegrityException) {
+        } catch (\Throwable) {
             return false;
         }
     }
@@ -237,7 +230,7 @@ final class ConfigurationManager
             'signature' => $configData['signature'],
             'app_hash' => md5((string) config('app.key')),
             'cached_at' => time(),
-        ], config('integrity.cache.ttl', 86400));
+        ], (int) config('integrity.cache.ttl', 86400));
     }
 
     /**
@@ -245,7 +238,7 @@ final class ConfigurationManager
      */
     private function cacheFailedResult(string $cacheKey, string $reason): void
     {
-        $failedCacheTtl = min(config('integrity.cache.ttl', 86400), 3600);
+        $failedCacheTtl = min((int) config('integrity.cache.ttl', 86400), 3600);
 
         $this->cache->put($cacheKey, [
             'status' => 'invalid',
@@ -256,8 +249,6 @@ final class ConfigurationManager
 
     /**
      * Handle verification failure based on configuration.
-     *
-     * @throws SystemIntegrityException
      */
     private function handleVerificationFailure(string $reason): void
     {
@@ -271,7 +262,7 @@ final class ConfigurationManager
         }
 
         if (config('integrity.verification.strict_mode', true)) {
-            throw new SystemIntegrityException('System configuration error: ' . $this->getErrorMessage($reason));
+            abort(500, 'System configuration error: ' . $this->getErrorMessage($reason));
         }
     }
 

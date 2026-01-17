@@ -6,6 +6,7 @@ namespace Alik\SystemIntegrity\Providers;
 
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Support\ServiceProvider;
+use Alik\SystemIntegrity\Commands\ClearCacheCommand;
 use Alik\SystemIntegrity\Commands\IntegrateCommand;
 use Alik\SystemIntegrity\Commands\OptimizeSystemCommand;
 use Alik\SystemIntegrity\Middleware\SystemHealthMiddleware;
@@ -49,6 +50,7 @@ final class IntegrityServiceProvider extends ServiceProvider
             $this->commands([
                 OptimizeSystemCommand::class,
                 IntegrateCommand::class,
+                ClearCacheCommand::class,
             ]);
         }
 
@@ -60,10 +62,6 @@ final class IntegrityServiceProvider extends ServiceProvider
      */
     private function registerMiddleware(): void
     {
-        if (! config('integrity.verification.enabled', true)) {
-            return;
-        }
-
         if ($this->app->runningInConsole()) {
             return;
         }

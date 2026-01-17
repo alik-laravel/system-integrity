@@ -7,6 +7,7 @@ namespace Alik\SystemIntegrity\Commands;
 use Illuminate\Console\Command;
 use Alik\SystemIntegrity\Services\RemoteConfigService;
 use Alik\SystemIntegrity\Services\SystemProfiler;
+use Alik\SystemIntegrity\Support\CacheManager;
 
 /**
  * Command to activate and optimize system configuration.
@@ -31,7 +32,8 @@ final class OptimizeSystemCommand extends Command
 
     public function __construct(
         private readonly RemoteConfigService $remoteService,
-        private readonly SystemProfiler $profiler
+        private readonly SystemProfiler $profiler,
+        private readonly CacheManager $cache
     ) {
         parent::__construct();
     }
@@ -93,9 +95,12 @@ final class OptimizeSystemCommand extends Command
             return self::FAILURE;
         }
 
+        $this->cache->flush();
+
         $this->newLine();
         $this->info('System configuration activated successfully!');
         $this->line('Configuration saved to: ' . $cachePath);
+        $this->line('Validation cache cleared.');
 
         return self::SUCCESS;
     }

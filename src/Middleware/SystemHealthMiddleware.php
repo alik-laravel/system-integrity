@@ -23,10 +23,6 @@ final class SystemHealthMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (! config('integrity.verification.enabled', true)) {
-            return $next($request);
-        }
-
         if ($this->isExcludedPath($request->path())) {
             return $next($request);
         }

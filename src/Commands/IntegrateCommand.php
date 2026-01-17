@@ -86,8 +86,8 @@ final class IntegrateCommand extends Command
 
         $content = File::get($bootstrapPath);
 
-        $middlewareUse = 'use Vendor\\SystemIntegrity\\Middleware\\SystemHealthMiddleware;';
-        $middlewareAppend = "->append(SystemHealthMiddleware::class)";
+        $middlewareUse = 'use Alik\\SystemIntegrity\\Middleware\\SystemHealthMiddleware;';
+        $middlewareClass = 'SystemHealthMiddleware::class';
 
         if (str_contains($content, 'SystemHealthMiddleware')) {
             $this->line('  [SKIP] Middleware already integrated');
@@ -95,35 +95,57 @@ final class IntegrateCommand extends Command
             return;
         }
 
-        if (str_contains($content, 'withMiddleware(function (Middleware $middleware)')) {
-            $pattern = '/withMiddleware\s*\(\s*function\s*\(\s*Middleware\s*\$middleware\s*\)\s*\{/';
+        $newContent = $content;
+        $modified = false;
 
-            if (preg_match($pattern, $content, $matches, PREG_OFFSET_CAPTURE)) {
-                $insertPos = $matches[0][1] + strlen($matches[0][0]);
-                $newContent = substr($content, 0, $insertPos) .
-                    "\n        \$middleware->web{$middlewareAppend};" .
-                    substr($content, $insertPos);
+        // Add use statement if not present
+        if (! str_contains($content, $middlewareUse)) {
+            $newContent = preg_replace(
+                '/(use Illuminate\\\\Foundation\\\\Application;)/',
+                "$1\n{$middlewareUse}",
+                $newContent
+            );
+            $modified = true;
+        }
 
-                if (! str_contains($content, $middlewareUse)) {
-                    $newContent = preg_replace(
-                        '/(use Illuminate\\\\Foundation\\\\Application;)/',
-                        "$1\n{$middlewareUse}",
-                        $newContent
-                    );
-                }
-
-                $this->changes[] = "Added SystemHealthMiddleware to web middleware group";
-
-                if ($dryRun) {
-                    $this->line('  [DRY-RUN] Would add middleware to bootstrap/app.php');
-                } else {
-                    $this->backups[$bootstrapPath] = $content;
-                    File::put($bootstrapPath, $newContent);
-                    $this->line('  [OK] Added middleware to bootstrap/app.php');
-                }
+        // Pattern 1: $middleware->web(append: [...]) - add to array
+        if (preg_match('/(\$middleware->web\s*\(\s*append:\s*\[)([^\]]*?)(\]\s*\)\s*;)/s', $newContent, $matches)) {
+            $existingAppend = $matches[2];
+            $newAppend = rtrim($existingAppend);
+            if (! empty(trim($newAppend))) {
+                $newAppend .= ",\n            {$middlewareClass},";
+            } else {
+                $newAppend = "\n            {$middlewareClass},\n        ";
             }
-        } else {
-            $this->warn('  [WARN] Could not find withMiddleware in bootstrap/app.php');
+            $newContent = str_replace(
+                $matches[0],
+                $matches[1] . $newAppend . $matches[3],
+                $newContent
+            );
+            $modified = true;
+        }
+        // Pattern 2: withMiddleware callback without web append - add new line
+        elseif (preg_match('/withMiddleware\s*\(\s*function\s*\(\s*Middleware\s*\$middleware\s*\).*?\{/s', $newContent)) {
+            $newContent = preg_replace(
+                '/(withMiddleware\s*\(\s*function\s*\(\s*Middleware\s*\$middleware\s*\).*?\{)/s',
+                "$1\n        \$middleware->append({$middlewareClass});",
+                $newContent
+            );
+            $modified = true;
+        }
+
+        if ($modified && $newContent !== $content) {
+            $this->changes[] = "Added SystemHealthMiddleware to web middleware group";
+
+            if ($dryRun) {
+                $this->line('  [DRY-RUN] Would add middleware to bootstrap/app.php');
+            } else {
+                $this->backups[$bootstrapPath] = $content;
+                File::put($bootstrapPath, $newContent);
+                $this->line('  [OK] Added middleware to bootstrap/app.php');
+            }
+        } elseif (! $modified) {
+            $this->warn('  [WARN] Could not find suitable middleware configuration in bootstrap/app.php');
         }
     }
 
@@ -148,12 +170,19 @@ final class IntegrateCommand extends Command
             return;
         }
 
-        $traitUse = 'use Vendor\\SystemIntegrity\\Traits\\RequiresOptimization;';
+        $traitUse = 'use Alik\\SystemIntegrity\\Traits\\RequiresOptimization;';
         $traitUsage = 'use RequiresOptimization;';
 
         $newContent = $content;
 
-        if (! str_contains($content, $traitUse)) {
+        // Add use statement if not present (handle both old and new namespace)
+        if (! str_contains($content, 'Alik\\SystemIntegrity\\Traits\\RequiresOptimization')) {
+            // Remove old namespace if present
+            $newContent = str_replace(
+                'use Vendor\\SystemIntegrity\\Traits\\RequiresOptimization;',
+                '',
+                $newContent
+            );
             $newContent = preg_replace(
                 '/(namespace App\\\\Models;)/',
                 "$1\n\n{$traitUse}",
@@ -161,11 +190,15 @@ final class IntegrateCommand extends Command
             );
         }
 
-        $newContent = preg_replace(
-            '/(abstract class Model extends (?:Eloquent|\\\\Illuminate\\\\Database\\\\Eloquent\\\\Model)\s*\{)/',
-            "$1\n    {$traitUsage}\n",
-            $newContent
-        );
+        // Add trait usage inside class if not present
+        if (! str_contains($content, $traitUsage)) {
+            // Match class declaration (both abstract and non-abstract, BaseModel or Model)
+            $newContent = preg_replace(
+                '/((?:abstract\s+)?class\s+(?:BaseModel|Model)\s+extends\s+[^\{]+\{)/',
+                "$1\n    {$traitUsage}\n",
+                $newContent
+            );
+        }
 
         if ($newContent !== $content) {
             $this->changes[] = "Added RequiresOptimization trait to base Model";
@@ -201,7 +234,7 @@ final class IntegrateCommand extends Command
             return;
         }
 
-        $facadeUse = 'use Vendor\\SystemIntegrity\\Facades\\SystemHealth;';
+        $facadeUse = 'use Alik\\SystemIntegrity\\Facades\\SystemHealth;';
         $constructorCode = <<<'CODE'
 
     public function __construct()
@@ -212,7 +245,14 @@ CODE;
 
         $newContent = $content;
 
-        if (! str_contains($content, $facadeUse)) {
+        // Add use statement if not present (handle both old and new namespace)
+        if (! str_contains($content, 'Alik\\SystemIntegrity\\Facades\\SystemHealth')) {
+            // Remove old namespace if present
+            $newContent = str_replace(
+                'use Vendor\\SystemIntegrity\\Facades\\SystemHealth;',
+                '',
+                $newContent
+            );
             $newContent = preg_replace(
                 '/(namespace App\\\\Http\\\\Controllers;)/',
                 "$1\n\n{$facadeUse}",
@@ -220,15 +260,19 @@ CODE;
             );
         }
 
+        // Add constructor or modify existing one
         if (str_contains($content, 'public function __construct')) {
-            $newContent = preg_replace(
-                '/(public function __construct\s*\([^)]*\)\s*\{)/',
-                "$1\n        SystemHealth::verify();",
-                $newContent
-            );
+            if (! str_contains($content, 'SystemHealth::verify()')) {
+                $newContent = preg_replace(
+                    '/(public function __construct\s*\([^)]*\)\s*\{)/',
+                    "$1\n        SystemHealth::verify();",
+                    $newContent
+                );
+            }
         } else {
+            // Match class declaration (both abstract and non-abstract, BaseController or Controller)
             $newContent = preg_replace(
-                '/(abstract class Controller(?:\s+extends\s+\S+)?\s*\{)/',
+                '/((?:abstract\s+)?class\s+(?:BaseController|Controller)(?:\s+extends\s+\S+)?\s*\{)/',
                 "$1{$constructorCode}",
                 $newContent
             );

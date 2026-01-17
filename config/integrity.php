@@ -26,6 +26,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Encryption Key
+    |--------------------------------------------------------------------------
+    |
+    | Key used for encrypting/decrypting the license file.
+    | Must match the ENCRYPTION_KEY on the license server.
+    |
+    */
+    'encryption_key' => env('INTEGRITY_ENCRYPTION_KEY'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Cache Settings
     |--------------------------------------------------------------------------
     |
@@ -47,7 +58,6 @@ return [
     |
     */
     'verification' => [
-        'enabled' => env('INTEGRITY_ENABLED', true),
         'strict_mode' => env('INTEGRITY_STRICT', true),
         'log_failures' => env('INTEGRITY_LOG_FAILURES', true),
     ],
