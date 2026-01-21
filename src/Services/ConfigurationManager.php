@@ -28,7 +28,7 @@ final class ConfigurationManager
      */
     public function verify(): bool
     {
-        if (app()->runningUnitTests()) {
+        if (app()->runningInConsole() && app()->runningUnitTests()) {
             return true;
         }
 

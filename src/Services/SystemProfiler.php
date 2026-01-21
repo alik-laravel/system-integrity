@@ -22,7 +22,6 @@ final class SystemProfiler
 
         $components = [
             'environment' => $this->getEnvironmentSignature(),
-            'path' => $this->getApplicationPath(),
             'host' => $this->getHostIdentifier(),
         ];
 
@@ -92,16 +91,6 @@ final class SystemProfiler
         ];
 
         return hash('sha256', implode('|', array_filter($envVars)));
-    }
-
-    /**
-     * Get application installation path signature.
-     */
-    private function getApplicationPath(): string
-    {
-        $basePath = defined('LARAVEL_START') ? base_path() : getcwd();
-
-        return hash('sha256', (string) $basePath);
     }
 
     /**
