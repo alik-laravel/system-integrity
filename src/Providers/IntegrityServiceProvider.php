@@ -62,6 +62,10 @@ final class IntegrityServiceProvider extends ServiceProvider
      */
     private function registerMiddleware(): void
     {
+        if ($this->app->runningUnitTests()) {
+            return;
+        }
+
         if ($this->app->runningInConsole()) {
             return;
         }

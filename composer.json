@@ -1,6 +1,6 @@
 {
   "name": "alik-laravel/system-integrity",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "System integrity and configuration optimization for Laravel applications",
   "type": "library",
   "license": "proprietary",

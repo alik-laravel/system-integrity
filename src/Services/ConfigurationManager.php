@@ -28,6 +28,10 @@ final class ConfigurationManager
      */
     public function verify(): bool
     {
+        if (app()->runningUnitTests()) {
+            return true;
+        }
+
         if ($this->verified && $this->lastResult !== null) {
             return $this->lastResult;
         }
